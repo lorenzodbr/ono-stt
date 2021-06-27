@@ -13,7 +13,8 @@ class Command {
 
   static const String COMMAND_NOT_FOUND = 'Comando non trovato';
   static const String WRONG_COMMAND_SINTAX = 'Sintassi del comando errata';
-  static const String ERROR_EXECUTING_COMMAND = "Errore durante l'esecuzione";
+  static const String ERROR_EXECUTING_COMMAND =
+      "Errore durante l'esecuzione del comando";
 
   static final commands = [
     REQUEST_EMPTY_DRAWER_COMMAND,
@@ -55,13 +56,15 @@ class Command {
   static Future<String> _executeRequestDrawer(command) async {
     int afterDrawer = command.indexOf('cassetto') + 'cassetto'.length;
 
-    //print(afterDrawer);
-
     int rawDrawerID;
 
     try {
-      rawDrawerID = int.parse(
-          command.substring(afterDrawer).replaceAll(' ', '').toUpperCase());
+      rawDrawerID = int.parse(command
+          .substring(afterDrawer)
+          .replaceAll(' ', '')
+          .replaceAll('sei',
+              '6') //l'unica cifra che potrebbe essere confusa con un verbo
+          .toUpperCase());
     } catch (ex) {
       return WRONG_COMMAND_SINTAX;
     }
@@ -89,13 +92,20 @@ class Command {
 
   static Future<String> _executeRequestEmptyDrawer(command) async {
     if (command.toLowerCase != 'porta cassetto vuoto') {
-      List<Drawer>? emptyDrawer = await _getEmptyDrawers();
+      List<Drawer>? emptyDrawers = await _getEmptyDrawers();
 
-      if (emptyDrawer != null) {
-        return await _requestDrawer(emptyDrawer[0].id);
-      } else {
-        return 'Cassetti vuoti finiti';
+      if (emptyDrawers != null) {
+        Drawer? bayDrawer = await _getBayDrawer();
+
+        for (Drawer drawer in emptyDrawers) {
+          if (bayDrawer != null && bayDrawer.id != drawer.id) {
+            print('cassetto: ' + drawer.id.toString());
+            return await _requestDrawer(drawer.id);
+          }
+        }
       }
+
+      return 'Cassetti vuoti finiti';
     } else {
       return WRONG_COMMAND_SINTAX;
     }
@@ -167,6 +177,22 @@ class Command {
       return await _requestDrawer(drawer.id);
     } catch (ex) {
       return ERROR_EXECUTING_COMMAND;
+    }
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  static Future<Drawer?> _getBayDrawer() async {
+    GetBayDrawerRequest getBayDrawerReq =
+        GetBayDrawerRequest(bayID: OnoStt.bayID);
+
+    try {
+      GetBayDrawerResponse getBayDrawerRes =
+          await GrpcService.client.getBayDrawer(getBayDrawerReq, options: null);
+
+      return getBayDrawerRes.drawer;
+    } catch (ex) {
+      return null;
     }
   }
 }

@@ -11,7 +11,7 @@ import 'package:ono_stt/utils.dart';
 ///
 ///     stt.initConnection(ip, port);
 ///
-///     bool available = stt.listenAndExecute();
+///     stt.listenAndExecute();
 ///
 class OnoStt {
   ///Indirizzo IP del server da contattare
@@ -66,6 +66,8 @@ class OnoStt {
     _tts = FlutterTts();
 
     OnoStt.bayID = bayID;
+
+    print('############ OnoStt v1.3 ############');
   }
 
   ///Inizializzazione della connessione al server
@@ -78,7 +80,7 @@ class OnoStt {
   }
 
   ///Metodo principale per attivare OnoStt
-  Future<bool> listenAndExecute({Function? onError, Function? onResult}) async {
+  void listenAndExecute({Function? onError, Function? onResult}) async {
     if (hasInitConnection && !isWorking) {
       isWaitingConfirmation = false;
       isExecuting = false;
@@ -88,61 +90,41 @@ class OnoStt {
       isWorking = true;
 
       _command = '';
+      _confirmation = '';
 
       _onError = onError;
       _onResult = onResult;
 
-      bool available = await _commandStt.initialize(onError: (val) {
-        hasError = true;
-        isExecuting = false;
-        isListening = false;
-
-        _commandStt.stop();
-
-        if (isWaitingConfirmation) {
-          _tts.setCompletionHandler(() {
-            isPlaying = false;
-            isWaitingConfirmation = false;
-            isWorking = false;
-
-            stop();
-          });
-
-          Future.delayed(Duration(seconds: 1), () {
-            isPlaying = true;
-
-            print('Operazione annullata');
-            _tts.speak('Operazione annullata');
-          });
-
-          _confirmationStt.stop();
-        }
-
-        _onError!(val);
-      }, onStatus: (val) {
-        if (_commandStt.isNotListening &&
-            !isWaitingConfirmation &&
-            _command != '' &&
-            !hasError) {
-          isWaitingConfirmation = true;
+      bool available = await _commandStt.initialize(
+        onError: (val) {
+          hasError = true;
+          isExecuting = false;
           isListening = false;
+          isWorking = false;
 
           _commandStt.stop();
+          _onError!('commandStt: ' + val.toString());
 
-          _tts.setCompletionHandler(() {
-            isPlaying = false;
+          if (isWaitingConfirmation) {
+            _tts.setCompletionHandler(() {
+              isPlaying = false;
 
-            _confirm();
-          });
+              isWorking = false;
 
-          Future.delayed(Duration(seconds: 1), () {
-            isPlaying = true;
+              stop();
+            });
 
-            print('Ho capito: ' + _command + '. Confermare?');
-            _tts.speak('Ho capito: ' + _command + '. Confermare?');
-          });
-        }
-      });
+            Future.delayed(Duration(seconds: 1), () {
+              isPlaying = true;
+
+              print(
+                  'Operazione annullata. Premi nuovamente il pulsante per ricominciare');
+              _tts.speak(
+                  'Operazione annullata. Premi nuovamente il pulsante per ricominciare');
+            });
+          }
+        },
+      );
 
       if (available) {
         print('ascolto il comando...');
@@ -153,18 +135,37 @@ class OnoStt {
           onResult: (val) {
             _command = val.recognizedWords;
             print(_command);
+
+            if (_commandStt.isNotListening &&
+                !isWaitingConfirmation &&
+                _command != '' &&
+                !hasError) {
+              isWaitingConfirmation = true;
+              isListening = false;
+
+              _commandStt.stop();
+
+              _tts.setCompletionHandler(() {
+                isPlaying = false;
+
+                _confirm();
+              });
+
+              Future.delayed(Duration(seconds: 1), () {
+                isPlaying = true;
+
+                print('Ho capito: "' + _command + '". Vuoi confermare?');
+                _tts.speak('Ho capito: "' + _command + '". Vuoi confermare?');
+              });
+            }
           },
         );
       }
-
-      return true;
-    } else {
-      return false;
     }
   }
 
   ///Metodo per bloccare l'esecuzione di OnoStt
-  bool stop() {
+  void stop() {
     if (!isExecuting) {
       _commandStt.stop();
       _confirmationStt.stop();
@@ -175,24 +176,18 @@ class OnoStt {
       isPlaying = false;
       isWaitingConfirmation = false;
       isWorking = false;
-
-      return true;
-    } else {
-      return false;
     }
   }
 
   void _confirm() async {
     bool available = await _confirmationStt.initialize(
       onError: (val) {
-        print('errore _confirmationStt');
-
         hasError = true;
         isWaitingConfirmation = false;
         isPlaying = false;
         isListening = false;
 
-        _onError!();
+        _onError!('confirmationStt: ' + val.toString());
 
         _tts.setCompletionHandler(() {
           isPlaying = false;
@@ -208,7 +203,7 @@ class OnoStt {
         _tts.speak('Operazione annullata');
       },
       onStatus: (val) {
-        print('onStatus');
+        print(val);
       },
     );
 
@@ -240,11 +235,11 @@ class OnoStt {
     print(choice);
 
     if (choice == 1) {
-      _confirmationStt.stop();
-
       isExecuting = true;
       isListening = false;
       isWaitingConfirmation = false;
+
+      _confirmationStt.stop();
 
       _tts.setCompletionHandler(() async {
         print('Eseguo');
@@ -268,10 +263,12 @@ class OnoStt {
         _sayResults(result);
       });
 
-      _tts.speak('Eseguo ' + _command + '. Attendi');
+      _tts.speak('Attendi.');
     } else if (_switchConfirmation() == 0) {
       isListening = false;
       isWaitingConfirmation = false;
+
+      _confirmationStt.stop();
 
       _tts.setCompletionHandler(() {
         isPlaying = false;
@@ -285,8 +282,6 @@ class OnoStt {
 
       print('Operazione annullata');
       _tts.speak('Operazione annullata');
-
-      _confirmationStt.stop();
     } else {
       isListening = false;
 
@@ -298,7 +293,7 @@ class OnoStt {
 
         _confirmationStt.listen(
           onResult: (val) {
-            _confirmation = val.recognizedWords;
+            _confirmation = val.recognizedWords.toLowerCase();
             print(_confirmation);
 
             _tts.setCompletionHandler(() {});
@@ -314,21 +309,20 @@ class OnoStt {
 
       isPlaying = true;
 
-      print("Non ho capito. Di': sì per confermare o no per rifiutare");
-      _tts.speak("Non ho capito. Di': sì per confermare o no per rifiutare");
+      print("Non ho capito. Di': \"sì\" per confermare o no per rifiutare");
+      _tts.speak(
+          "Non ho capito. Di': \"sì\" per confermare o no per rifiutare");
     }
   }
 
   int _switchConfirmation() {
-    print('sono in getConfirmation');
+    print('confirmation: ' + _confirmation);
 
-    print('confirmation: ' + _confirmation.toLowerCase());
-
-    if (_confirmation.toLowerCase() == 'sì' ||
-        _confirmation.toLowerCase() == 'conferma' ||
-        _confirmation.toLowerCase() == 'confermo') {
+    if (_confirmation == 'sì' ||
+        _confirmation == 'conferma' ||
+        _confirmation == 'confermo') {
       return 1;
-    } else if (_confirmation.toLowerCase() == 'no') {
+    } else if (_confirmation == 'no') {
       return 0;
     } else {
       return -1;
@@ -340,7 +334,7 @@ class OnoStt {
       case Command.COMMAND_NOT_FOUND:
       case Command.WRONG_COMMAND_SINTAX:
       case Command.ERROR_EXECUTING_COMMAND:
-        _tts.speak('Il server ha risposto: ' + result);
+        _tts.speak(result);
         break;
       default:
         _tts.speak('Comando eseguito correttamente');
