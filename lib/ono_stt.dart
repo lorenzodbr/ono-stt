@@ -7,7 +7,7 @@ import 'package:ono_stt/utils.dart';
 
 ///   Inizializzazione ed utilizzo:
 ///
-///     OnoStt stt = OnoStt();
+///     OnoStt stt = OnoStt(1); <- 1: bayID associato
 ///
 ///     stt.initConnection(ip, port);
 ///
