@@ -23,18 +23,19 @@ class OnoStt {
   ///Baia associata
   static late int bayID;
 
+  ///_commandStt o _confirmationStt sono in ascolto
   bool isListening = false;
 
-  ///_commandStt o _confirmationStt sono in ascolto
+  ///_commandStt o _confirmationStt hanno degli errori
   bool hasError = false;
 
-  ///_commandStt o _confirmationStt hanno degli errori
+  ///_tts sta parlando
   bool isPlaying = false;
 
-  ///_tts sta parlando
+  ///Il server sta ricevendo le richieste e deve ancora rispondere
   bool isExecuting = false;
 
-  ///Il server sta ricevendo le richieste e deve ancora rispondere
+  ///OnoStt ha già cominciato ad ascoltare ma non ha terminato le richieste al server
   bool isWorking = false;
 
   ///OnoStt sta aspettando al conferma dell'utente
